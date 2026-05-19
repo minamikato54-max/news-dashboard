@@ -1,0 +1,9 @@
+.env
+.claude/
+__pycache__/
+*.pyc
+*.pyo
+articles_raw.json
+articles_processed.json
+recent_urls.json
+python

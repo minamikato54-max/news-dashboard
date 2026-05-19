@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アーカイブ - ニュースダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --primary: #2563eb; --bg: #f1f5f9; --text: #1e293b; --muted: #64748b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); margin-left: 160px; }
+  header { background: var(--primary); color: #fff; padding: 16px 20px; }
+  header h1 { font-size: 1.2rem; }
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 20px;
+    background: #fff; border-bottom: 1px solid #e2e8f0; align-items: center; }
+  .filters label { font-size: 0.9rem; color: var(--muted); }
+  #dateSelect { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; }
+  .cat-btn { padding: 6px 14px; border: 2px solid #e2e8f0; background: #fff;
+    border-radius: 16px; cursor: pointer; font-size: 0.85rem; }
+  .cat-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  #resultCount { font-size: 0.85rem; color: var(--muted); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px; padding: 20px; }
+  .a-card { background: #fff; border-radius: 10px; padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .a-card .date-cat { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+  .a-card .title { font-size: 0.9rem; font-weight: bold; margin-bottom: 6px; line-height: 1.4; }
+  .a-card .summary { font-size: 0.82rem; color: #374151; line-height: 1.5; margin-bottom: 8px; }
+  .a-card a { font-size: 0.82rem; color: var(--primary); text-decoration: none; }
+  .a-card a:hover { text-decoration: underline; }
+  .chart-section { background: #fff; margin: 0 20px 20px; border-radius: 12px;
+    padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .chart-section h2 { font-size: 1rem; margin-bottom: 16px; }
+  /* サイドナビ */
+  .side-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 160px;
+    background: #fff; border-right: 1px solid #e2e8f0; display: flex;
+    flex-direction: column; z-index: 100; box-shadow: 2px 0 6px rgba(0,0,0,.08); }
+  .side-nav-brand { padding: 16px 14px 14px; font-size: 0.85rem; font-weight: bold;
+    color: var(--primary); border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; }
+  .side-nav a { display: block; padding: 13px 16px; color: var(--text);
+    text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent;
+    transition: all .15s; }
+  .side-nav a:hover { background: #f1f5f9; color: var(--primary); }
+  .side-nav a.active { background: #eff6ff; color: var(--primary);
+    border-left-color: var(--primary); font-weight: bold; }
+  footer { text-align: center; padding: 16px; font-size: 0.8rem; color: var(--muted); }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="side-nav">
+  <div class="side-nav-brand">📰 ニュースDB</div>
+  <a href="index.html">📅 今日</a>
+  <a href="archive.html" class="active">📂 アーカイブ</a>
+  <a href="weekly.html">📊 週次まとめ</a>
+</nav>
+
+<header>
+  <h1>📂 アーカイブ</h1>
+</header>
+
+<div class="filters">
+  <label>日付:</label>
+  <select id="dateSelect" onchange="applyFilter()">
+    <option value="">すべての日付</option>
+  </select>
+  <label>カテゴリ:</label>
+  <button class="cat-btn active" data-cat="" onclick="selectCat(this)">すべて</button>
+  <button class="cat-btn" data-cat="経済" onclick="selectCat(this)">📈 経済</button>
+  <button class="cat-btn" data-cat="AI事情" onclick="selectCat(this)">🤖 AI事情</button>
+  <button class="cat-btn" data-cat="国内" onclick="selectCat(this)">🏠 国内</button>
+  <button class="cat-btn" data-cat="海外" onclick="selectCat(this)">🌏 海外</button>
+  <span id="resultCount"></span>
+</div>
+
+<div class="chart-section">
+  <h2>📊 クイズ正答率の推移（カテゴリ別）</h2>
+  <canvas id="quizChart" height="80"></canvas>
+</div>
+
+<div class="cards" id="cardsContainer">
+  <div class="empty">記事を読み込み中...</div>
+</div>
+
+<footer>ニュースダッシュボード | 過去30日分</footer>
+
+<script>
+const ALL_ARTICLES = [{&#34;id&#34;: &#34;eco-001&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;日本のAI競争力が向上、各社が技術開発に注力&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;日本企業のAI分野における競争力が向上している。政府の支援策も後押しし、実行力のある施策が次々と打たれている。各社の影響力も国際的に拡大しつつある。&#34;, &#34;importance&#34;: 3}, {&#34;id&#34;: &#34;eco-002&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;円相場が150円台、輸出企業の収益力に追い風&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;外国為替市場で円安が進行し1ドル150円台となった。輸出企業の収益力は向上しているが、輸入品の価格上昇で家計への負担感が増している。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;eco-003&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;日銀が金融政策を維持、物価安定目標の達成に向け持続力を強調&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;日本銀行は金融政策決定会合で現行の政策を維持することを決定した。物価安定目標2%の持続的実現に向け粘り強く取り組む方針を示した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;eco-004&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;半導体市場が回復基調、国内製造業の技術革新力に期待&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;世界的な半導体市場が回復基調に入り、日本の製造業にも恩恵が及んでいる。技術革新力を高めた国内企業が競争優位性を確立しつつある。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;ai-001&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;Claude 4が公開、思考力と対話力が大幅向上&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;Anthropic が最新モデル Claude 4 を公開した。推論能力の向上により複雑な問題の処理能力が向上し、多くの業界での活用余地が広がっている。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;ai-002&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI規制法案が国会で審議入り、企業の対応力が問われる&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;生成AIの普及に伴い国会でAI規制法案の審議が始まった。個人情報保護と透明性の確保が焦点で、企業の対応力と説明責任が問われている。&#34;, &#34;importance&#34;: 3}, {&#34;id&#34;: &#34;ai-003&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;医療AIが診断精度を向上、医師の判断補助ツールとして実用化&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;AIを活用した医療診断支援システムの実用化が進んでいる。医師の診断精度と処理能力を補完し、患者への対応力向上が期待されている。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;ai-004&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AIによる偽情報拡散の抑止力強化、各プラットフォームが対策&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;SNS各社がAIを使った偽情報検知システムを強化している。抑止力のある仕組みを整えることで情報の信頼性を高める取り組みが本格化している。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;dom-001&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;少子化対策として育児支援策を拡充、実行力ある政策が急務&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;政府は少子化対策の一環として育児休業給付の拡充を決定した。財源確保の実現可能性と持続可能性が課題で、実行力ある政策が急がれている。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;dom-002&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;能登半島の復興状況を視察、地域の持続力を支援&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;首相が能登半島地震の被災地を視察し、インフラ整備の加速を指示した。道路・水道の復旧が急がれており、地域社会の持続力を支える支援が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;dom-003&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国会議員の政治資金問題、透明性と説明責任が焦点&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;政治資金をめぐる問題が国会で議論されている。政治家の説明責任と資金管理の透明性確保を求める声が高まっており、制度改正の実現可能性が問われている。&#34;, &#34;importance&#34;: 3}, {&#34;id&#34;: &#34;dom-004&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;インバウンド需要が過去最高、観光地の受容力整備が課題&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;訪日外国人数が過去最高を更新し、観光消費額も拡大している。一方で人気観光地の受容力を超えるオーバーツーリズムが問題となっており、対策が急がれている。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;int-001&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;G7サミット開幕、AIガバナンスと気候変動が議題に&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;主要7カ国首脳会議（G7サミット）が開幕した。AIの国際規制と気候変動対策が主要議題で、各国の指導力と影響力が試される場となっている。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;int-002&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;中東情勢が緊迫、原油価格が急騰し世界経済への影響力が拡大&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;中東の軍事的緊張が高まり原油価格が1バレル90ドルを超えた。エネルギー輸入依存度の高い日本への影響力は大きく、物価上昇への懸念が強まっている。&#34;, &#34;importance&#34;: 3}, {&#34;id&#34;: &#34;int-003&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;米大統領が対中関税を維持、貿易摩擦の持続力が懸念&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;米国が中国に対する追加関税の維持を発表した。貿易摩擦の長期化が世界のサプライチェーンに影響を及ぼしており、各国の対応力が試されている。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;int-004&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;ウクライナ支援継続をNATO確認、防衛能力の強化が急務&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;NATO加盟国がウクライナへの軍事・財政支援の継続を確認した。防衛能力の強化と持久力のある支援体制の構築が急務とされている。&#34;, &#34;importance&#34;: 3}, {&#34;id&#34;: &#34;arch-1-1&#34;, &#34;date&#34;: &#34;2026-05-18&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-18：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-18 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-1-2&#34;, &#34;date&#34;: &#34;2026-05-18&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-18：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-18 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-1-3&#34;, &#34;date&#34;: &#34;2026-05-18&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-18：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-18 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-1-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-18：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-18 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-2-1&#34;, &#34;date&#34;: &#34;2026-05-17&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-17：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-17 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-2-2&#34;, &#34;date&#34;: &#34;2026-05-17&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-17：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-17 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-2-3&#34;, &#34;date&#34;: &#34;2026-05-17&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-17：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-17 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-2-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-17：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-17 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-3-1&#34;, &#34;date&#34;: &#34;2026-05-16&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-16：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-16 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-3-2&#34;, &#34;date&#34;: &#34;2026-05-16&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-16：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-16 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-3-3&#34;, &#34;date&#34;: &#34;2026-05-16&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-16：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-16 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-3-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-16：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-16 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-4-1&#34;, &#34;date&#34;: &#34;2026-05-15&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-15：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-15 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-4-2&#34;, &#34;date&#34;: &#34;2026-05-15&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-15：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-15 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-4-3&#34;, &#34;date&#34;: &#34;2026-05-15&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-15：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-15 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-4-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-15：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-15 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-5-1&#34;, &#34;date&#34;: &#34;2026-05-14&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-14：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-14 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-5-2&#34;, &#34;date&#34;: &#34;2026-05-14&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-14：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-14 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-5-3&#34;, &#34;date&#34;: &#34;2026-05-14&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-14：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-14 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-5-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-14：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-14 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-6-1&#34;, &#34;date&#34;: &#34;2026-05-13&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-13：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-13 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-6-2&#34;, &#34;date&#34;: &#34;2026-05-13&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-13：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-13 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-6-3&#34;, &#34;date&#34;: &#34;2026-05-13&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-13：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-13 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-6-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-13：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-13 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-7-1&#34;, &#34;date&#34;: &#34;2026-05-12&#34;, &#34;category&#34;: &#34;経済&#34;, &#34;title&#34;: &#34;経済ニュース 2026-05-12：GDP改定値が公表&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-12 の経済ニュース。GDPの改定値が公表され、実質成長率が前期比でプラスとなった。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-7-2&#34;, &#34;date&#34;: &#34;2026-05-12&#34;, &#34;category&#34;: &#34;AI事情&#34;, &#34;title&#34;: &#34;AI事情 2026-05-12：新サービスが相次いでリリース&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-12 のAIニュース。大手テック企業から新しいAIサービスが相次いでリリースされた。&#34;, &#34;importance&#34;: 2}, {&#34;id&#34;: &#34;arch-7-3&#34;, &#34;date&#34;: &#34;2026-05-12&#34;, &#34;category&#34;: &#34;国内&#34;, &#34;title&#34;: &#34;国内ニュース 2026-05-12：国会審議が続く&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-12 の国内ニュース。重要法案の国会審議が続いており、与野党の攻防が続いている。&#34;, &#34;importance&#34;: 1}, {&#34;id&#34;: &#34;arch-7-4&#34;, &#34;date&#34;: &#34;2026-05-19&#34;, &#34;category&#34;: &#34;海外&#34;, &#34;title&#34;: &#34;海外ニュース 2026-05-12：国際情勢が緊迫&#34;, &#34;url&#34;: &#34;https://www3.nhk.or.jp/news/&#34;, &#34;summary&#34;: &#34;2026-05-12 の海外ニュース。国際情勢の緊迫化を受け、各国首脳が緊急会議を開催した。&#34;, &#34;importance&#34;: 2}];
+let selectedCat = "";
+let selectedDate = "";
+
+// 日付セレクタを構築
+const dates = [...new Set(ALL_ARTICLES.map(a => a.date))].sort().reverse();
+const sel = document.getElementById("dateSelect");
+dates.forEach(d => {
+  const opt = document.createElement("option");
+  opt.value = d;
+  opt.textContent = d;
+  sel.appendChild(opt);
+});
+
+function selectCat(btn) {
+  document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  selectedCat = btn.dataset.cat;
+  applyFilter();
+}
+
+function applyFilter() {
+  selectedDate = document.getElementById("dateSelect").value;
+  const filtered = ALL_ARTICLES.filter(a => {
+    if (selectedDate && a.date !== selectedDate) return false;
+    if (selectedCat && a.category !== selectedCat) return false;
+    return true;
+  });
+  renderCards(filtered);
+}
+
+function renderCards(articles) {
+  const container = document.getElementById("cardsContainer");
+  document.getElementById("resultCount").textContent = articles.length + " 件";
+  if (articles.length === 0) {
+    container.innerHTML = '<div class="empty">該当する記事がありません。</div>';
+    return;
+  }
+  container.innerHTML = articles.map(a => `
+    <div class="a-card">
+      <div class="date-cat">${a.date} · ${a.category} · ${"★".repeat(a.importance || 1)}${"☆".repeat(3 - (a.importance || 1))}</div>
+      <div class="title">${escHtml(a.title)}</div>
+      <div class="summary">${escHtml(a.summary)}</div>
+      <a href="${escHtml(a.url)}" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+  `).join("");
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+applyFilter();
+
+// クイズ正答率グラフ
+(function buildQuizChart() {
+  const cats = ["経済","AI事情","国内","海外"];
+  const colors = ["#2563eb","#7c3aed","#16a34a","#ea580c"];
+  const dateSet = [...new Set(ALL_ARTICLES.map(a => a.date))].sort();
+  // articleId → category のマップ
+  const idToCat = {};
+  ALL_ARTICLES.forEach(a => { idToCat[a.id] = a.category; });
+
+  const datasets = cats.map((cat, ci) => {
+    const data = dateSet.map(d => {
+      const ids = ALL_ARTICLES.filter(a => a.date === d && a.category === cat).map(a => a.id);
+      if (!ids.length) return null;
+      const qData = JSON.parse(localStorage.getItem("nd_quiz_" + d) || "{}");
+      const relevant = ids.filter(id => qData[id] !== undefined);
+      if (!relevant.length) return null;
+      const correct = relevant.filter(id => qData[id].ok).length;
+      return Math.round(correct / relevant.length * 100);
+    });
+    return { label: cat, data, borderColor: colors[ci], backgroundColor: colors[ci] + "30",
+      tension: 0.3, spanGaps: true };
+  });
+
+  new Chart(document.getElementById("quizChart"), {
+    type: "line",
+    data: { labels: dateSet, datasets },
+    options: {
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + "%" } }
+      },
+      plugins: { legend: { position: "top" } }
+    }
+  });
+})();
+</script>
+</body>
+</html>

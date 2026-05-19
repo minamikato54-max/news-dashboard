@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アーカイブ - ニュースダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --primary: #2563eb; --bg: #f1f5f9; --text: #1e293b; --muted: #64748b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); margin-left: 160px; }
+  header { background: var(--primary); color: #fff; padding: 16px 20px; }
+  header h1 { font-size: 1.2rem; }
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 20px;
+    background: #fff; border-bottom: 1px solid #e2e8f0; align-items: center; }
+  .filters label { font-size: 0.9rem; color: var(--muted); }
+  #dateSelect { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; }
+  .cat-btn { padding: 6px 14px; border: 2px solid #e2e8f0; background: #fff;
+    border-radius: 16px; cursor: pointer; font-size: 0.85rem; }
+  .cat-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  #resultCount { font-size: 0.85rem; color: var(--muted); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px; padding: 20px; }
+  .a-card { background: #fff; border-radius: 10px; padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .a-card .date-cat { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+  .a-card .title { font-size: 0.9rem; font-weight: bold; margin-bottom: 6px; line-height: 1.4; }
+  .a-card .summary { font-size: 0.82rem; color: #374151; line-height: 1.5; margin-bottom: 8px; }
+  .a-card a { font-size: 0.82rem; color: var(--primary); text-decoration: none; }
+  .a-card a:hover { text-decoration: underline; }
+  .chart-section { background: #fff; margin: 0 20px 20px; border-radius: 12px;
+    padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .chart-section h2 { font-size: 1rem; margin-bottom: 16px; }
+  /* サイドナビ */
+  .side-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 160px;
+    background: #fff; border-right: 1px solid #e2e8f0; display: flex;
+    flex-direction: column; z-index: 100; box-shadow: 2px 0 6px rgba(0,0,0,.08); }
+  .side-nav-brand { padding: 16px 14px 14px; font-size: 0.85rem; font-weight: bold;
+    color: var(--primary); border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; }
+  .side-nav a { display: block; padding: 13px 16px; color: var(--text);
+    text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent;
+    transition: all .15s; }
+  .side-nav a:hover { background: #f1f5f9; color: var(--primary); }
+  .side-nav a.active { background: #eff6ff; color: var(--primary);
+    border-left-color: var(--primary); font-weight: bold; }
+  footer { text-align: center; padding: 16px; font-size: 0.8rem; color: var(--muted); }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="side-nav">
+  <div class="side-nav-brand">📰 ニュースDB</div>
+  <a href="index.html">📅 今日</a>
+  <a href="archive.html" class="active">📂 アーカイブ</a>
+  <a href="weekly.html">📊 週次まとめ</a>
+</nav>
+
+<header>
+  <h1>📂 アーカイブ</h1>
+</header>
+
+<div class="filters">
+  <label>日付:</label>
+  <select id="dateSelect" onchange="applyFilter()">
+    <option value="">すべての日付</option>
+  </select>
+  <label>カテゴリ:</label>
+  <button class="cat-btn active" data-cat="" onclick="selectCat(this)">すべて</button>
+  <button class="cat-btn" data-cat="経済" onclick="selectCat(this)">📈 経済</button>
+  <button class="cat-btn" data-cat="AI事情" onclick="selectCat(this)">🤖 AI事情</button>
+  <button class="cat-btn" data-cat="国内" onclick="selectCat(this)">🏠 国内</button>
+  <button class="cat-btn" data-cat="海外" onclick="selectCat(this)">🌏 海外</button>
+  <span id="resultCount"></span>
+</div>
+
+<div class="chart-section">
+  <h2>📊 クイズ正答率の推移（カテゴリ別）</h2>
+  <canvas id="quizChart" height="80"></canvas>
+</div>
+
+<div class="cards" id="cardsContainer">
+  <div class="empty">記事を読み込み中...</div>
+</div>
+
+<footer>ニュースダッシュボード | 過去30日分</footer>
+
+<script>
+const ALL_ARTICLES = {{ articles_json }};
+let selectedCat = "";
+let selectedDate = "";
+
+// 日付セレクタを構築
+const dates = [...new Set(ALL_ARTICLES.map(a => a.date))].sort().reverse();
+const sel = document.getElementById("dateSelect");
+dates.forEach(d => {
+  const opt = document.createElement("option");
+  opt.value = d;
+  opt.textContent = d;
+  sel.appendChild(opt);
+});
+
+function selectCat(btn) {
+  document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  selectedCat = btn.dataset.cat;
+  applyFilter();
+}
+
+function applyFilter() {
+  selectedDate = document.getElementById("dateSelect").value;
+  const filtered = ALL_ARTICLES.filter(a => {
+    if (selectedDate && a.date !== selectedDate) return false;
+    if (selectedCat && a.category !== selectedCat) return false;
+    return true;
+  });
+  renderCards(filtered);
+}
+
+function renderCards(articles) {
+  const container = document.getElementById("cardsContainer");
+  document.getElementById("resultCount").textContent = articles.length + " 件";
+  if (articles.length === 0) {
+    container.innerHTML = '<div class="empty">該当する記事がありません。</div>';
+    return;
+  }
+  container.innerHTML = articles.map(a => `
+    <div class="a-card">
+      <div class="date-cat">${a.date} · ${a.category} · ${"★".repeat(a.importance || 1)}${"☆".repeat(3 - (a.importance || 1))}</div>
+      <div class="title">${escHtml(a.title)}</div>
+      <div class="summary">${escHtml(a.summary)}</div>
+      <a href="${escHtml(a.url)}" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+  `).join("");
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+applyFilter();
+
+// クイズ正答率グラフ
+(function buildQuizChart() {
+  const cats = ["経済","AI事情","国内","海外"];
+  const colors = ["#2563eb","#7c3aed","#16a34a","#ea580c"];
+  const dateSet = [...new Set(ALL_ARTICLES.map(a => a.date))].sort();
+  // articleId → category のマップ
+  const idToCat = {};
+  ALL_ARTICLES.forEach(a => { idToCat[a.id] = a.category; });
+
+  const datasets = cats.map((cat, ci) => {
+    const data = dateSet.map(d => {
+      const ids = ALL_ARTICLES.filter(a => a.date === d && a.category === cat).map(a => a.id);
+      if (!ids.length) return null;
+      const qData = JSON.parse(localStorage.getItem("nd_quiz_" + d) || "{}");
+      const relevant = ids.filter(id => qData[id] !== undefined);
+      if (!relevant.length) return null;
+      const correct = relevant.filter(id => qData[id].ok).length;
+      return Math.round(correct / relevant.length * 100);
+    });
+    return { label: cat, data, borderColor: colors[ci], backgroundColor: colors[ci] + "30",
+      tension: 0.3, spanGaps: true };
+  });
+
+  new Chart(document.getElementById("quizChart"), {
+    type: "line",
+    data: { labels: dateSet, datasets },
+    options: {
+      scales: {
+        y: { min: 0, max: 100, ticks: { callback: v => v + "%" } }
+      },
+      plugins: { legend: { position: "top" } }
+    }
+  });
+})();
+</script>
+</body>
+</html>

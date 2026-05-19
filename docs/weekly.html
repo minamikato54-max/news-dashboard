@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>週次まとめ - ニュースダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root { --primary: #2563eb; --bg: #f1f5f9; --text: #1e293b; --muted: #64748b; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); margin-left: 160px; }
+  header { background: var(--primary); color: #fff; padding: 16px 20px; }
+  header h1 { font-size: 1.2rem; }
+  header .meta { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+  .section { background: #fff; margin: 20px; border-radius: 12px; padding: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .section h2 { font-size: 1rem; font-weight: bold; margin-bottom: 14px;
+    padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+  .summary-text { font-size: 0.92rem; line-height: 1.8; color: #374151; }
+  .trend-chart-wrap { max-width: 600px; }
+  .important-list { display: flex; flex-direction: column; gap: 12px; }
+  .imp-card { border-left: 4px solid var(--primary); padding: 10px 14px;
+    background: #f8fafc; border-radius: 0 8px 8px 0; }
+  .imp-card .imp-cat { font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+  .imp-card .imp-title { font-size: 0.9rem; font-weight: bold; margin-bottom: 6px; }
+  .imp-card .imp-summary { font-size: 0.82rem; color: #374151; line-height: 1.5; margin-bottom: 6px; }
+  .imp-card a { font-size: 0.82rem; color: var(--primary); text-decoration: none; }
+  .imp-card a:hover { text-decoration: underline; }
+  .stats { display: flex; gap: 16px; flex-wrap: wrap; }
+  .stat-box { flex: 1; min-width: 120px; text-align: center; background: #f8fafc;
+    border-radius: 8px; padding: 14px; }
+  .stat-num { font-size: 1.8rem; font-weight: bold; color: var(--primary); }
+  .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+  /* サイドナビ */
+  .side-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 160px;
+    background: #fff; border-right: 1px solid #e2e8f0; display: flex;
+    flex-direction: column; z-index: 100; box-shadow: 2px 0 6px rgba(0,0,0,.08); }
+  .side-nav-brand { padding: 16px 14px 14px; font-size: 0.85rem; font-weight: bold;
+    color: var(--primary); border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; }
+  .side-nav a { display: block; padding: 13px 16px; color: var(--text);
+    text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent;
+    transition: all .15s; }
+  .side-nav a:hover { background: #f1f5f9; color: var(--primary); }
+  .side-nav a.active { background: #eff6ff; color: var(--primary);
+    border-left-color: var(--primary); font-weight: bold; }
+  footer { text-align: center; padding: 16px; font-size: 0.8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<nav class="side-nav">
+  <div class="side-nav-brand">📰 ニュースDB</div>
+  <a href="index.html">📅 今日</a>
+  <a href="archive.html">📂 アーカイブ</a>
+  <a href="weekly.html" class="active">📊 週次まとめ</a>
+</nav>
+
+<header>
+  <h1>📊 週次まとめ</h1>
+  <div class="meta">2026-05-12 〜 2026-05-19</div>
+</header>
+
+<div class="section">
+  <h2>📝 今週のまとめ</h2>
+  <p class="summary-text">今週は国内外でAI関連の話題が目立った。国内ではAI規制法案の審議入りや少子化対策の拡充が議論された。海外では中東情勢の緊迫化による原油価格上昇とG7サミットでのAIガバナンス議論が注目を集めた。経済面では円安が続き輸出企業への追い風となる一方、輸入物価の上昇が家計を圧迫している。</p>
+</div>
+
+<div class="section">
+  <h2>🔥 トレンドワード</h2>
+  <div class="trend-chart-wrap">
+    <canvas id="trendChart" height="200"></canvas>
+  </div>
+</div>
+
+
+<div class="section">
+  <h2>⭐ 今週の重要記事</h2>
+  <div class="important-list">
+    
+    <div class="imp-card">
+      <div class="imp-cat">2026-05-19 · 経済</div>
+      <div class="imp-title">日本のAI競争力が向上、各社が技術開発に注力</div>
+      <div class="imp-summary">日本企業のAI分野における競争力が向上している。政府の支援策も後押しし、実行力のある施策が次々と打たれている。各社の影響力も国際的に拡大しつつある。</div>
+      <a href="https://www3.nhk.or.jp/news/" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+    
+    <div class="imp-card">
+      <div class="imp-cat">2026-05-19 · AI事情</div>
+      <div class="imp-title">AI規制法案が国会で審議入り、企業の対応力が問われる</div>
+      <div class="imp-summary">生成AIの普及に伴い国会でAI規制法案の審議が始まった。個人情報保護と透明性の確保が焦点で、企業の対応力と説明責任が問われている。</div>
+      <a href="https://www3.nhk.or.jp/news/" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+    
+    <div class="imp-card">
+      <div class="imp-cat">2026-05-19 · 国内</div>
+      <div class="imp-title">国会議員の政治資金問題、透明性と説明責任が焦点</div>
+      <div class="imp-summary">政治資金をめぐる問題が国会で議論されている。政治家の説明責任と資金管理の透明性確保を求める声が高まっており、制度改正の実現可能性が問われている。</div>
+      <a href="https://www3.nhk.or.jp/news/" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+    
+    <div class="imp-card">
+      <div class="imp-cat">2026-05-19 · 海外</div>
+      <div class="imp-title">中東情勢が緊迫、原油価格が急騰し世界経済への影響力が拡大</div>
+      <div class="imp-summary">中東の軍事的緊張が高まり原油価格が1バレル90ドルを超えた。エネルギー輸入依存度の高い日本への影響力は大きく、物価上昇への懸念が強まっている。</div>
+      <a href="https://www3.nhk.or.jp/news/" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+    
+    <div class="imp-card">
+      <div class="imp-cat">2026-05-19 · 海外</div>
+      <div class="imp-title">ウクライナ支援継続をNATO確認、防衛能力の強化が急務</div>
+      <div class="imp-summary">NATO加盟国がウクライナへの軍事・財政支援の継続を確認した。防衛能力の強化と持久力のある支援体制の構築が急務とされている。</div>
+      <a href="https://www3.nhk.or.jp/news/" target="_blank" rel="noopener">🔗 記事を読む</a>
+    </div>
+    
+  </div>
+</div>
+
+
+<div class="section">
+  <h2>📈 今週の統計</h2>
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-num">44</div>
+      <div class="stat-label">今週の記事数</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">5</div>
+      <div class="stat-label">重要記事（★3）</div>
+    </div>
+  </div>
+</div>
+
+<footer>ニュースダッシュボード | 週次まとめ</footer>
+
+<script>
+const TREND_DATA = [{"count": 32, "word": "AI"}, {"count": 2, "word": "\u7af6\u4e89\u529b"}, {"count": 2, "word": "\u4e2d\u6771"}, {"count": 2, "word": "\u5c11\u5b50\u5316"}, {"count": 2, "word": "\u539f\u6cb9\u4fa1\u683c"}, {"count": 2, "word": "NATO"}, {"count": 2, "word": "\u534a\u5c0e\u4f53"}, {"count": 1, "word": "\u5186\u5b89"}];
+if (TREND_DATA && TREND_DATA.length) {
+  new Chart(document.getElementById("trendChart"), {
+    type: "bar",
+    data: {
+      labels: TREND_DATA.map(d => d.word),
+      datasets: [{
+        label: "記事内出現数",
+        data: TREND_DATA.map(d => d.count),
+        backgroundColor: "#2563eb99",
+        borderColor: "#2563eb",
+        borderWidth: 1,
+      }]
+    },
+    options: {
+      indexAxis: "y",
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+}
+</script>
+</body>
+</html>

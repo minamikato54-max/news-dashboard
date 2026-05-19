@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ニュースダッシュボード - {{ today }}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --primary: #2563eb;
+    --important-border: #ef4444;
+    --card-bg: #fff;
+    --bg: #f1f5f9;
+    --text: #1e293b;
+    --muted: #64748b;
+    --tab-active: #2563eb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); margin-left: 160px; }
+  header { background: var(--primary); color: #fff; padding: 16px 20px; }
+  header h1 { font-size: 1.2rem; }
+  header .meta { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+  .top-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+    padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+  .streak { font-size: 0.9rem; color: #f97316; font-weight: bold; }
+  .progress-wrap { flex: 1; min-width: 160px; }
+  .progress-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  .progress-bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #22c55e; border-radius: 4px; transition: width .3s; }
+  .search-wrap { display: flex; align-items: center; gap: 8px; }
+  #searchInput { padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: 0.9rem; width: 200px; }
+  .tabs { display: flex; gap: 4px; padding: 12px 20px; background: #fff;
+    border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+  .tab-btn { padding: 8px 16px; border: 2px solid #e2e8f0; background: #fff;
+    border-radius: 20px; cursor: pointer; font-size: 0.9rem; transition: all .2s; }
+  .tab-btn.active { background: var(--tab-active); color: #fff; border-color: var(--tab-active); }
+  .category-section { display: none; padding: 20px; }
+  .category-section.active { display: block; }
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .card { background: var(--card-bg); border-radius: 12px; padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 2px solid transparent;
+    position: relative; transition: box-shadow .2s; }
+  .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+  .card.important-3 { border-color: var(--important-border); }
+  .card.hidden { display: none; }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+  .card-title { font-size: 0.95rem; font-weight: bold; line-height: 1.4; flex: 1; }
+  .importance-badge { font-size: 0.75rem; white-space: nowrap; padding: 2px 6px;
+    border-radius: 4px; background: #fef3c7; color: #92400e; font-weight: bold; }
+  .card.important-3 .importance-badge { background: #fee2e2; color: #991b1b; }
+  .summary { font-size: 0.88rem; color: #374151; line-height: 1.6; margin-bottom: 10px; }
+  .terms-section { font-size: 0.82rem; background: #f8fafc; border-radius: 6px;
+    padding: 8px 10px; margin-bottom: 10px; }
+  .terms-section strong { color: var(--primary); }
+  .quiz-section { background: #eff6ff; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .quiz-question { font-size: 0.88rem; font-weight: bold; margin-bottom: 8px; }
+  .quiz-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .quiz-btn { padding: 6px 8px; border: 1px solid #bfdbfe; border-radius: 6px;
+    background: #fff; cursor: pointer; font-size: 0.82rem; text-align: left; transition: all .15s; }
+  .quiz-btn:hover { background: #dbeafe; }
+  .quiz-btn.correct { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .quiz-btn.wrong { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  .quiz-result { font-size: 0.82rem; margin-top: 6px; font-weight: bold; }
+  .bg-section { margin-bottom: 10px; }
+  .bg-toggle { font-size: 0.82rem; color: var(--primary); cursor: pointer;
+    background: none; border: none; padding: 0; text-decoration: underline; }
+  .bg-content { font-size: 0.82rem; color: var(--muted); margin-top: 6px;
+    background: #f8fafc; border-radius: 6px; padding: 8px 10px; display: none; }
+  .bg-content.open { display: block; }
+  .related-section { font-size: 0.82rem; margin-bottom: 10px; }
+  .related-section a { color: var(--primary); text-decoration: none; display: block;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .related-section a:hover { text-decoration: underline; }
+  .card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .action-btn { padding: 5px 10px; border: 1px solid #e2e8f0; border-radius: 16px;
+    background: #fff; cursor: pointer; font-size: 0.8rem; transition: all .15s; }
+  .action-btn:hover { background: #f1f5f9; }
+  .action-btn.active { background: #fef9c3; border-color: #fcd34d; }
+  .read-btn.done { background: #dcfce7; border-color: #86efac; }
+  .share-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .share-link { padding: 5px 12px; border-radius: 16px; font-size: 0.8rem;
+    text-decoration: none; display: inline-block; }
+  .share-x { background: #000; color: #fff; }
+  .share-line { background: #06c755; color: #fff; }
+  .read-more { display: inline-block; font-size: 0.85rem; color: var(--primary);
+    text-decoration: none; font-weight: bold; }
+  .read-more:hover { text-decoration: underline; }
+  footer { text-align: center; padding: 20px; font-size: 0.8rem; color: var(--muted); }
+  /* サイドナビ */
+  .side-nav { position: fixed; left: 0; top: 0; bottom: 0; width: 160px;
+    background: #fff; border-right: 1px solid #e2e8f0; display: flex;
+    flex-direction: column; z-index: 100; box-shadow: 2px 0 6px rgba(0,0,0,.08); }
+  .side-nav-brand { padding: 16px 14px 14px; font-size: 0.85rem; font-weight: bold;
+    color: var(--primary); border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; }
+  .side-nav a { display: block; padding: 13px 16px; color: var(--text);
+    text-decoration: none; font-size: 0.88rem; border-left: 3px solid transparent;
+    transition: all .15s; }
+  .side-nav a:hover { background: #f1f5f9; color: var(--primary); }
+  .side-nav a.active { background: #eff6ff; color: var(--primary);
+    border-left-color: var(--primary); font-weight: bold; }
+
+  /* バッジ */
+  .badge-bar { padding: 6px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; display: none; }
+  .badge-wrap { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .badge { font-size: 0.78rem; padding: 3px 10px; border-radius: 12px; background: #fef9c3; border: 1px solid #fcd34d; white-space: nowrap; }
+  @keyframes badge-pop { 0%,100%{transform:scale(1)} 50%{transform:scale(1.3)} }
+  .badge.new { animation: badge-pop .4s ease; }
+
+  /* メモ */
+  .memo-wrap { margin-top: 8px; }
+  .memo-toggle { font-size: 0.78rem; color: var(--primary); cursor: pointer; background: none; border: none; padding: 0; text-decoration: underline; }
+  .memo-area { display: none; margin-top: 6px; width: 100%; min-height: 60px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 0.82rem; font-family: inherit; resize: vertical; }
+  .memo-area.open { display: block; }
+
+  /* 復習セクション */
+  .review-section { padding: 16px 20px; background: #fff7ed; border-bottom: 2px solid #fed7aa; display: none; }
+  .review-section h2 { font-size: 0.95rem; color: #c2410c; margin-bottom: 12px; }
+  .review-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 12px; }
+  .review-card { background: #fff; border-radius: 8px; padding: 12px; border: 1px solid #fed7aa; }
+  .r-meta { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+  .r-question { font-size: 0.88rem; font-weight: bold; margin-bottom: 8px; }
+  .review-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .review-btn { padding: 6px 8px; border: 1px solid #bfdbfe; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.82rem; text-align: left; }
+  .review-btn:hover { background: #dbeafe; }
+  .review-btn.correct { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .review-btn.wrong { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+  .review-result { font-size: 0.82rem; margin-top: 6px; font-weight: bold; }
+
+  /* FAB ボタン */
+  .diary-fab { position: fixed; bottom: 24px; right: 24px; background: #f97316; color: #fff; border: none; border-radius: 50%; width: 54px; height: 54px; font-size: 1.4rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.25); z-index: 100; line-height: 54px; text-align: center; }
+  .fc-fab { position: fixed; bottom: 88px; right: 24px; background: #7c3aed; color: #fff; border: none; border-radius: 50%; width: 54px; height: 54px; font-size: 1.3rem; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.25); z-index: 100; line-height: 54px; text-align: center; }
+
+  /* モーダル共通 */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #fff; border-radius: 14px; padding: 22px; width: 92%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { font-size: 1rem; margin-bottom: 14px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .btn-primary { padding: 8px 18px; background: var(--primary); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+  .btn-secondary { padding: 8px 18px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+
+  /* 日記モーダル */
+  .diary-lines { display: flex; flex-direction: column; gap: 8px; }
+  .diary-line { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; font-size: 0.88rem; font-family: inherit; resize: none; min-height: 56px; }
+  .diary-history { margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+  .diary-history h4 { font-size: 0.85rem; color: var(--muted); margin-bottom: 8px; }
+  .diary-entry { font-size: 0.82rem; background: #f8fafc; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; }
+  .diary-entry .d-date { font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+
+  /* フラッシュカードモーダル */
+  .fc-inner { text-align: center; }
+  .fc-progress { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; }
+  .fc-card-wrap { min-height: 150px; background: #eff6ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 24px; margin-bottom: 14px; cursor: pointer; transition: background .2s; }
+  .fc-card-wrap.flipped { background: #f0fdf4; }
+  .fc-word { font-size: 1.4rem; font-weight: bold; }
+  .fc-hint { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+  .fc-explanation { font-size: 0.95rem; line-height: 1.7; }
+  .fc-buttons { display: flex; gap: 10px; justify-content: center; margin-bottom: 14px; }
+  .fc-ok { padding: 8px 22px; background: #dcfce7; border: 1px solid #86efac; color: #166534; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+  .fc-retry { padding: 8px 22px; background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<nav class="side-nav">
+  <div class="side-nav-brand">📰 ニュースDB</div>
+  <a href="index.html" class="active">📅 今日</a>
+  <a href="archive.html">📂 アーカイブ</a>
+  <a href="weekly.html">📊 週次まとめ</a>
+</nav>
+
+<header>
+  <h1>📰 ニュースダッシュボード</h1>
+  <div class="meta">{{ today }} の最新ニュース</div>
+</header>
+
+<div class="top-bar">
+  <div class="streak" id="streakDisplay"></div>
+  <div class="progress-wrap">
+    <div class="progress-label" id="progressLabel">読了: 0 / {{ total }} 記事</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+  <div class="search-wrap">
+    🔍 <input type="text" id="searchInput" placeholder="キーワード検索..." oninput="filterCards()">
+  </div>
+</div>
+
+<div class="badge-bar" id="badgeBar">
+  <div class="badge-wrap" id="badgeWrap"></div>
+</div>
+
+<div class="review-section" id="reviewSection">
+  <h2>🔁 昨日の復習（間違えた問題）</h2>
+  <div class="review-grid" id="reviewCards"></div>
+</div>
+
+<div class="tabs">
+  {% for cat in categories %}
+  <button class="tab-btn {% if loop.first %}active{% endif %}"
+    onclick="switchTab('{{ cat }}', this)">
+    {% if cat == '経済' %}📈{% elif cat == 'AI事情' %}🤖{% elif cat == '国内' %}🏠{% else %}🌏{% endif %}
+    {{ cat }}
+  </button>
+  {% endfor %}
+</div>
+
+{% for cat in categories %}
+<div class="category-section {% if loop.first %}active{% endif %}" id="tab-{{ cat }}">
+  <div class="cards-grid">
+    {% for article in by_category[cat] %}
+    {% set aid = article.id %}
+    <div class="card {% if article.importance == 3 %}important-3{% endif %}"
+         id="card-{{ aid }}"
+         data-title="{{ article.title }}"
+         data-summary="{{ article.summary }}">
+
+      <div class="card-header">
+        <div class="card-title">
+          {% if article.importance == 3 %}🔴{% endif %}
+          {{ article.title }}
+        </div>
+        <div class="importance-badge">
+          {% for i in range(article.importance) %}★{% endfor %}{% for i in range(3 - article.importance) %}☆{% endfor %}
+        </div>
+      </div>
+
+      <div class="summary">{{ article.summary }}</div>
+
+      {% if article.terms %}
+      <div class="terms-section">
+        📖 <strong>用語解説</strong><br>
+        {% for term in article.terms %}
+        <span data-word="{{ term.word }}" data-explanation="{{ term.explanation }}">「{{ term.word }}」: {{ term.explanation }}</span>{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if article.quiz %}
+      <div class="quiz-section" id="quiz-{{ aid }}"
+           data-question="{{ article.quiz.question }}"
+           data-choices='{{ article.quiz.choices | tojson }}'
+           data-answer="{{ article.quiz.answer_index }}"
+           data-category="{{ cat }}"
+           data-title="{{ article.title }}">
+        <div class="quiz-question">❓ {{ article.quiz.question }}</div>
+        <div class="quiz-choices">
+          {% for choice in article.quiz.choices %}
+          <button class="quiz-btn"
+            onclick="answerQuiz('{{ aid }}', {{ loop.index0 }}, {{ article.quiz.answer_index }}, this)">
+            {{ choice }}
+          </button>
+          {% endfor %}
+        </div>
+        <div class="quiz-result" id="qresult-{{ aid }}"></div>
+      </div>
+      {% endif %}
+
+      {% if article.background %}
+      <div class="bg-section">
+        <button class="bg-toggle" onclick="toggleBg('bg-{{ aid }}')">▼ 背景を知る</button>
+        <div class="bg-content" id="bg-{{ aid }}">{{ article.background }}</div>
+      </div>
+      {% endif %}
+
+      {% if article.related_ids and article.related_ids | length > 0 %}
+      <div class="related-section" id="related-{{ aid }}">
+        📰 <strong>関連記事:</strong> <span class="related-loading">読込中...</span>
+      </div>
+      {% endif %}
+
+      <div class="card-actions">
+        <button class="action-btn" id="tts-{{ aid }}"
+          onclick="toggleTTS('{{ aid }}', `{{ article.summary | replace('`','\\`') }}`, `{% if article.quiz %}{{ article.quiz.question | replace('`','\\`') }}{% endif %}`)">🔊 読み上げ</button>
+        <button class="action-btn" id="fav-{{ aid }}"
+          onclick="toggleFav('{{ aid }}', this)">★ お気に入り</button>
+        <button class="action-btn read-btn" id="read-{{ aid }}"
+          onclick="toggleRead('{{ aid }}', this)">✓ 読んだ</button>
+      </div>
+
+      <div class="memo-wrap">
+        <button class="memo-toggle" id="memo-btn-{{ aid }}" onclick="toggleMemo('{{ aid }}')">📝 メモ</button>
+        <textarea class="memo-area" id="memo-{{ aid }}" oninput="saveMemo('{{ aid }}')" placeholder="気づいたことを一言メモ..."></textarea>
+      </div>
+
+      <div class="share-row">
+        <a class="share-link share-x"
+          href="https://twitter.com/intent/tweet?text={{ article.title | urlencode }}&url={{ article.url | urlencode }}"
+          target="_blank" rel="noopener">X でシェア</a>
+        <a class="share-link share-line"
+          href="https://line.me/R/msg/text/?{{ (article.title ~ ' ' ~ article.url) | urlencode }}"
+          target="_blank" rel="noopener">LINE でシェア</a>
+      </div>
+
+      <a class="read-more" href="{{ article.url }}" target="_blank" rel="noopener">🔗 記事を読む →</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<footer>自動生成 | {{ today }} | Powered by NHK RSS &amp; ChatGPT</footer>
+
+<!-- 日記 FAB -->
+<button class="diary-fab" onclick="openDiary()" title="今日の3行日記">📔</button>
+<!-- フラッシュカード FAB -->
+<button class="fc-fab" onclick="openFlashcards()" title="単語フラッシュカード">🃏</button>
+
+<!-- 日記モーダル -->
+<div class="modal-overlay" id="diaryModal">
+  <div class="modal-box">
+    <h3>📔 今日の3行日記 — {{ today }}</h3>
+    <div class="diary-lines">
+      <textarea class="diary-line" id="diaryLine1" placeholder="1. 今日一番印象に残ったニュースは？"></textarea>
+      <textarea class="diary-line" id="diaryLine2" placeholder="2. そのニュースについて感じたこと・考えたことは？"></textarea>
+      <textarea class="diary-line" id="diaryLine3" placeholder="3. 明日確認したいこと・もっと知りたいことは？"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeDiary()">閉じる</button>
+      <button class="btn-primary" onclick="saveDiary()">💾 保存</button>
+    </div>
+    <div class="diary-history" id="diaryHistory"></div>
+  </div>
+</div>
+
+<!-- フラッシュカードモーダル -->
+<div class="modal-overlay" id="fcModal">
+  <div class="modal-box">
+    <div class="fc-inner">
+      <h3>🃏 単語フラッシュカード</h3>
+      <p class="fc-progress" id="fcProgress"></p>
+      <div class="fc-card-wrap" id="fcCardWrap" onclick="flipFcCard()">
+        <div id="fcCardContent"></div>
+      </div>
+      <div class="fc-buttons" id="fcButtons">
+        <button class="fc-retry" onclick="fcRetry()">🔄 もう一回</button>
+        <button class="fc-ok" onclick="fcOk()">✅ 覚えた</button>
+      </div>
+      <button class="btn-secondary" onclick="closeFcModal()">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TODAY = "{{ today }}";
+const TOTAL = {{ total }};
+
+// ---- ストリーク ----
+function updateStreak() {
+  const key = "nd_streak";
+  const lastKey = "nd_last_visit";
+  const last = localStorage.getItem(lastKey);
+  let streak = parseInt(localStorage.getItem(key) || "0");
+  const today = TODAY;
+  if (last === today) {
+    // 同日: そのまま
+  } else if (last) {
+    const diff = (new Date(today) - new Date(last)) / 86400000;
+    streak = diff <= 1 ? streak + 1 : 1;
+  } else {
+    streak = 1;
+  }
+  localStorage.setItem(key, streak);
+  localStorage.setItem(lastKey, today);
+  const el = document.getElementById("streakDisplay");
+  if (streak >= 2) el.textContent = "🔥 " + streak + "日連続閲覧中！";
+}
+updateStreak();
+
+// ---- 読了進捗 ----
+function getReadSet() {
+  const raw = localStorage.getItem("nd_read_" + TODAY);
+  return new Set(raw ? JSON.parse(raw) : []);
+}
+function saveReadSet(set) {
+  localStorage.setItem("nd_read_" + TODAY, JSON.stringify([...set]));
+}
+function updateProgress() {
+  const count = getReadSet().size;
+  document.getElementById("progressLabel").textContent = "読了: " + count + " / " + TOTAL + " 記事";
+  document.getElementById("progressFill").style.width = (count / Math.max(TOTAL, 1) * 100) + "%";
+}
+function toggleRead(id, btn) {
+  const set = getReadSet();
+  if (set.has(id)) { set.delete(id); btn.classList.remove("done"); }
+  else { set.add(id); btn.classList.add("done"); }
+  saveReadSet(set);
+  updateProgress();
+}
+function initRead() {
+  const set = getReadSet();
+  set.forEach(id => {
+    const btn = document.getElementById("read-" + id);
+    if (btn) btn.classList.add("done");
+  });
+  updateProgress();
+}
+initRead();
+
+// ---- お気に入り ----
+function getFavSet() {
+  const raw = localStorage.getItem("nd_favs");
+  return new Set(raw ? JSON.parse(raw) : []);
+}
+function toggleFav(id, btn) {
+  const set = getFavSet();
+  if (set.has(id)) { set.delete(id); btn.classList.remove("active"); }
+  else { set.add(id); btn.classList.add("active"); }
+  localStorage.setItem("nd_favs", JSON.stringify([...set]));
+}
+function initFavs() {
+  const set = getFavSet();
+  set.forEach(id => {
+    const btn = document.getElementById("fav-" + id);
+    if (btn) btn.classList.add("active");
+  });
+}
+initFavs();
+
+// ---- クイズ ----
+function answerQuiz(aid, chosen, correct, btn) {
+  const section = document.getElementById("quiz-" + aid);
+  section.querySelectorAll(".quiz-btn").forEach(b => b.disabled = true);
+  const isCorrect = chosen === correct;
+  btn.classList.add(isCorrect ? "correct" : "wrong");
+  if (!isCorrect) section.querySelectorAll(".quiz-btn")[correct].classList.add("correct");
+  document.getElementById("qresult-" + aid).textContent = isCorrect ? "✅ 正解！" : "❌ 不正解";
+
+  const key = "nd_quiz_" + TODAY;
+  const data = JSON.parse(localStorage.getItem(key) || "{}");
+  data[aid] = { chosen, correct, ok: isCorrect };
+  localStorage.setItem(key, JSON.stringify(data));
+
+  // 復習用にクイズ詳細を保存
+  const detailKey = "nd_quiz_detail_" + TODAY;
+  const details = JSON.parse(localStorage.getItem(detailKey) || "{}");
+  try {
+    details[aid] = {
+      question: section.dataset.question || "",
+      choices: JSON.parse(section.dataset.choices || "[]"),
+      answer_index: parseInt(section.dataset.answer || "0"),
+      category: section.dataset.category || "",
+      title: section.dataset.title || "",
+    };
+    localStorage.setItem(detailKey, JSON.stringify(details));
+  } catch(e) {}
+
+  renderBadges();
+}
+// 既回答を復元
+function initQuiz() {
+  const data = JSON.parse(localStorage.getItem("nd_quiz_" + TODAY) || "{}");
+  Object.entries(data).forEach(([aid, r]) => {
+    const section = document.getElementById("quiz-" + aid);
+    if (!section) return;
+    const btns = section.querySelectorAll(".quiz-btn");
+    btns.forEach(b => b.disabled = true);
+    btns[r.chosen]?.classList.add(r.ok ? "correct" : "wrong");
+    if (!r.ok) btns[r.correct]?.classList.add("correct");
+    document.getElementById("qresult-" + aid).textContent = r.ok ? "✅ 正解！" : "❌ 不正解";
+  });
+}
+initQuiz();
+
+// ---- 背景アコーディオン ----
+function toggleBg(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle("open");
+}
+
+// ---- タブ切り替え ----
+function switchTab(cat, btn) {
+  document.querySelectorAll(".category-section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("tab-" + cat).classList.add("active");
+  btn.classList.add("active");
+  filterCards();
+}
+
+// ---- キーワード検索 ----
+function filterCards() {
+  const q = document.getElementById("searchInput").value.trim().toLowerCase();
+  document.querySelectorAll(".card").forEach(card => {
+    if (!q) { card.classList.remove("hidden"); return; }
+    const text = (card.dataset.title + " " + card.dataset.summary).toLowerCase();
+    card.classList.toggle("hidden", !text.includes(q));
+  });
+}
+
+// ---- バッジシステム ----
+const BADGES = [
+  {at:1,  icon:"🎯", name:"初正解"},
+  {at:5,  icon:"📚", name:"5問正解"},
+  {at:10, icon:"⭐", name:"10問達成"},
+  {at:20, icon:"🌟", name:"20問達成"},
+  {at:50, icon:"👑", name:"クイズ王"},
+];
+
+function getTotalCorrect() {
+  let total = 0;
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key.startsWith("nd_quiz_") || key.startsWith("nd_quiz_detail_")) continue;
+    try {
+      const data = JSON.parse(localStorage.getItem(key) || "{}");
+      Object.values(data).forEach(r => { if (r.ok) total++; });
+    } catch(e) {}
+  }
+  return total;
+}
+
+function renderBadges() {
+  const total = getTotalCorrect();
+  const earnedKey = "nd_badges";
+  const prev = new Set(JSON.parse(localStorage.getItem(earnedKey) || "[]"));
+  const now = new Set(BADGES.filter(b => total >= b.at).map(b => b.name));
+  const newOnes = [...now].filter(n => !prev.has(n));
+  if (newOnes.length) {
+    localStorage.setItem(earnedKey, JSON.stringify([...now]));
+    newOnes.forEach(name => {
+      const b = BADGES.find(b => b.name === name);
+      const toast = document.createElement("div");
+      toast.style.cssText = "position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:12px 20px;border-radius:10px;z-index:300;font-size:1rem;box-shadow:0 4px 12px rgba(0,0,0,.3);";
+      toast.textContent = "🎉 バッジ獲得！ " + b.icon + " " + b.name;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    });
+  }
+  const wrap = document.getElementById("badgeWrap");
+  const bar = document.getElementById("badgeBar");
+  if (!wrap) return;
+  if (now.size === 0) { bar.style.display = "none"; return; }
+  bar.style.display = "block";
+  wrap.innerHTML = BADGES.filter(b => now.has(b.name))
+    .map(b => `<span class="badge">${b.icon} ${b.name}</span>`).join("");
+}
+renderBadges();
+
+// ---- メモ ----
+function toggleMemo(aid) {
+  const area = document.getElementById("memo-" + aid);
+  const btn = document.getElementById("memo-btn-" + aid);
+  area.classList.toggle("open");
+  if (area.classList.contains("open")) {
+    area.value = localStorage.getItem("nd_memo_" + aid) || "";
+    btn.textContent = "📝 メモを閉じる";
+  } else {
+    btn.textContent = area.value.trim() ? "📝 メモあり ✓" : "📝 メモ";
+  }
+}
+function saveMemo(aid) {
+  localStorage.setItem("nd_memo_" + aid, document.getElementById("memo-" + aid).value);
+}
+function initMemos() {
+  document.querySelectorAll(".memo-area").forEach(area => {
+    const aid = area.id.replace("memo-", "");
+    const saved = localStorage.getItem("nd_memo_" + aid);
+    if (saved && saved.trim()) {
+      const btn = document.getElementById("memo-btn-" + aid);
+      if (btn) btn.textContent = "📝 メモあり ✓";
+    }
+  });
+}
+initMemos();
+
+// ---- 昨日の復習 ----
+function getYesterday(d) {
+  const dt = new Date(d); dt.setDate(dt.getDate() - 1);
+  return dt.toISOString().slice(0, 10);
+}
+function escH(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function loadReview() {
+  const yd = getYesterday(TODAY);
+  let quizData = {}, details = {};
+  try { quizData = JSON.parse(localStorage.getItem("nd_quiz_" + yd) || "{}"); } catch(e) {}
+  try { details = JSON.parse(localStorage.getItem("nd_quiz_detail_" + yd) || "{}"); } catch(e) {}
+  const wrongs = Object.entries(quizData)
+    .filter(([aid, r]) => !r.ok)
+    .map(([aid]) => details[aid])
+    .filter(d => d && d.question && d.choices && d.choices.length);
+  if (!wrongs.length) return;
+  document.getElementById("reviewSection").style.display = "block";
+  document.getElementById("reviewCards").innerHTML = wrongs.map((d, i) => `
+    <div class="review-card" id="rcard-${i}">
+      <div class="r-meta">${escH(d.category)} · ${escH(d.title)}</div>
+      <div class="r-question">❓ ${escH(d.question)}</div>
+      <div class="review-choices">
+        ${d.choices.map((c, ci) =>
+          `<button class="review-btn" onclick="answerReview(${i},${ci},${d.answer_index},this)">${escH(c)}</button>`
+        ).join("")}
+      </div>
+      <div class="review-result" id="rresult-${i}"></div>
+    </div>`).join("");
+}
+function answerReview(idx, chosen, correct, btn) {
+  const card = document.getElementById("rcard-" + idx);
+  card.querySelectorAll(".review-btn").forEach(b => b.disabled = true);
+  const ok = chosen === correct;
+  btn.classList.add(ok ? "correct" : "wrong");
+  if (!ok) card.querySelectorAll(".review-btn")[correct].classList.add("correct");
+  document.getElementById("rresult-" + idx).textContent = ok ? "✅ 正解！" : "❌ もう一度頑張ろう";
+}
+loadReview();
+
+// ---- 3行日記 ----
+function openDiary() {
+  const saved = JSON.parse(localStorage.getItem("nd_diary_" + TODAY) || "[]");
+  ["diaryLine1","diaryLine2","diaryLine3"].forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.value = saved[i] || "";
+  });
+  const hist = document.getElementById("diaryHistory");
+  const pastEntries = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith("nd_diary_") && key !== "nd_diary_" + TODAY) {
+      try {
+        const date = key.replace("nd_diary_", "");
+        const lines = JSON.parse(localStorage.getItem(key) || "[]").filter(l => l.trim());
+        if (lines.length) pastEntries.push({ date, lines });
+      } catch(e) {}
+    }
+  }
+  pastEntries.sort((a,b) => b.date.localeCompare(a.date));
+  hist.innerHTML = pastEntries.length ? "<h4>過去の日記</h4>" +
+    pastEntries.slice(0, 5).map(e =>
+      `<div class="diary-entry"><div class="d-date">${e.date}</div>${e.lines.map(l => escH(l)).join("<br>")}</div>`
+    ).join("") : "";
+  document.getElementById("diaryModal").classList.add("open");
+}
+function closeDiary() { document.getElementById("diaryModal").classList.remove("open"); }
+function saveDiary() {
+  const lines = ["diaryLine1","diaryLine2","diaryLine3"].map(id => {
+    const el = document.getElementById(id); return el ? el.value.trim() : "";
+  });
+  localStorage.setItem("nd_diary_" + TODAY, JSON.stringify(lines));
+  closeDiary();
+}
+
+// ---- フラッシュカード ----
+let fcCards = [], fcIndex = 0, fcFlipped = false;
+function collectTerms() {
+  const terms = [];
+  document.querySelectorAll("[data-word]").forEach(el => {
+    if (el.dataset.word && el.dataset.explanation)
+      terms.push({ word: el.dataset.word, explanation: el.dataset.explanation });
+  });
+  return terms;
+}
+function openFlashcards() {
+  const all = collectTerms();
+  if (!all.length) { alert("今日の記事に用語解説がありません。"); return; }
+  fcCards = all.sort(() => Math.random() - 0.5);
+  fcIndex = 0; fcFlipped = false;
+  document.getElementById("fcModal").classList.add("open");
+  renderFcCard();
+}
+function closeFcModal() { document.getElementById("fcModal").classList.remove("open"); }
+function renderFcCard() {
+  const wrap = document.getElementById("fcCardWrap");
+  const content = document.getElementById("fcCardContent");
+  const btns = document.getElementById("fcButtons");
+  if (fcIndex >= fcCards.length) {
+    document.getElementById("fcProgress").textContent = "全" + fcCards.length + "枚終了！";
+    wrap.innerHTML = "<div style='font-size:2rem'>🎉</div><div>お疲れ様でした！</div>";
+    btns.style.display = "none";
+    return;
+  }
+  fcFlipped = false;
+  wrap.className = "fc-card-wrap";
+  btns.style.display = "flex";
+  document.getElementById("fcProgress").textContent = (fcIndex+1) + " / " + fcCards.length;
+  content.innerHTML = `<div><div class="fc-word">${escH(fcCards[fcIndex].word)}</div><div class="fc-hint">タップして解説を表示</div></div>`;
+}
+function flipFcCard() {
+  if (fcFlipped) return;
+  fcFlipped = true;
+  document.getElementById("fcCardWrap").className = "fc-card-wrap flipped";
+  document.getElementById("fcCardContent").innerHTML =
+    `<div class="fc-explanation">${escH(fcCards[fcIndex].explanation)}</div>`;
+}
+function fcOk() { fcIndex++; renderFcCard(); }
+function fcRetry() {
+  const card = fcCards.splice(fcIndex, 1)[0];
+  fcCards.push(card);
+  renderFcCard();
+}
+
+// ---- 読み上げ ----
+let currentUtter = null;
+let ttsVoice = null;
+
+function loadVoice() {
+  const voices = speechSynthesis.getVoices();
+  if (!voices.length) return;
+  const preferred = ["Microsoft Haruka", "Google 日本語", "Kyoko", "O-Ren"];
+  for (const name of preferred) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) { ttsVoice = v; return; }
+  }
+  ttsVoice = voices.find(v => v.lang === "ja-JP") || null;
+}
+speechSynthesis.onvoiceschanged = loadVoice;
+loadVoice();
+
+function preprocessTTS(text) {
+  // 〜力（りょく）の読み：漢字の直後の「力」はりょく
+  return text.replace(/([一-鿿])力/g, "$1りょく");
+}
+
+function toggleTTS(aid, summary, quizQuestion) {
+  const btn = document.getElementById("tts-" + aid);
+  if (currentUtter && speechSynthesis.speaking) {
+    speechSynthesis.cancel();
+    currentUtter = null;
+    document.querySelectorAll("[id^='tts-']").forEach(b => b.textContent = "🔊 読み上げ");
+    return;
+  }
+  document.querySelectorAll("[id^='tts-']").forEach(b => b.textContent = "🔊 読み上げ");
+  const rawText = summary + (quizQuestion ? "　クイズです。" + quizQuestion : "");
+  const utter = new SpeechSynthesisUtterance(preprocessTTS(rawText));
+  utter.lang = "ja-JP";
+  utter.rate = 0.95;
+  if (ttsVoice) utter.voice = ttsVoice;
+  utter.onend = () => { btn.textContent = "🔊 読み上げ"; currentUtter = null; };
+  currentUtter = utter;
+  btn.textContent = "⏹ 停止";
+  speechSynthesis.speak(utter);
+}
+</script>
+</body>
+</html>
