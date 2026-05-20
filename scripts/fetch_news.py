@@ -17,6 +17,7 @@ RSS_SOURCES: dict[str, list[str]] = {
     ],
     "海外": [
         "https://www3.nhk.or.jp/rss/news/cat6.xml",
+        "https://feeds.bbci.co.uk/japanese/rss.xml",
         "https://news.google.com/rss/search?q=%E6%B5%B7%E5%A4%96+%E5%9B%BD%E9%9A%9B+%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9&hl=ja&gl=JP&ceid=JP:ja",
     ],
     "AI事情": [
@@ -28,9 +29,8 @@ ARTICLES_PER_CATEGORY = 4
 OUTPUT_FILE = Path(__file__).parent.parent / "articles_raw.json"
 
 
-def fetch_category(category: str, urls: list[str]) -> list[dict]:
+def fetch_category(category: str, urls: list[str], seen_urls: set[str]) -> list[dict]:
     articles: list[dict] = []
-    seen_urls: set[str] = set()
     for url in urls:
         if len(articles) >= ARTICLES_PER_CATEGORY:
             break
@@ -52,9 +52,10 @@ def fetch_category(category: str, urls: list[str]) -> list[dict]:
 
 def main() -> None:
     all_articles = []
+    seen_urls: set[str] = set()
     for category, urls in RSS_SOURCES.items():
         try:
-            articles = fetch_category(category, urls)
+            articles = fetch_category(category, urls, seen_urls)
             print(f"{category}: {len(articles)}件取得")
             all_articles.extend(articles)
         except Exception as e:
