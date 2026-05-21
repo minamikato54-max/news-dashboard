@@ -73,6 +73,7 @@ def main() -> None:
 
     briefing_articles = [
         {
+            "id": str(a.get("id", "")),
             "category": a["category"],
             "summary": a.get("summary", ""),
             "quizQuestion": a["quiz"]["question"] if a.get("quiz") else "",

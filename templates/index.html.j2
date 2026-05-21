@@ -23,6 +23,11 @@
   #briefing-btn { margin-top: 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5);
     color: #fff; padding: 6px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; }
   #briefing-btn:hover { background: rgba(255,255,255,0.35); }
+  #briefing-next { position: fixed; bottom: 80px; right: 20px; z-index: 200;
+    background: var(--primary); color: #fff; border: none; border-radius: 24px;
+    padding: 12px 22px; font-size: 0.92rem; cursor: pointer; display: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+  #briefing-next:hover { filter: brightness(1.1); }
   .top-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
     padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
   .streak { font-size: 0.9rem; color: #f97316; font-weight: bold; }
@@ -696,7 +701,7 @@ function fcRetry() {
 let currentUtter = null;
 let ttsVoice = null;
 const MORNING_ARTICLES = {{ briefing_articles | tojson }};
-let briefingIndex = 0;
+let briefingArticleIndex = 0;
 let briefingRunning = false;
 
 function loadVoice() {
@@ -754,42 +759,92 @@ function startMorningBriefing() {
     speechSynthesis.cancel();
     briefingRunning = false;
     btn.textContent = "📻 全記事を聴く";
+    hideBriefingNext();
     return;
   }
   speechSynthesis.cancel();
   document.querySelectorAll("[id^='tts-']").forEach(b => b.textContent = "🔊 読み上げ");
-  const queue = ["本日のモーニングブリーフィングを開始します。"];
-  let lastCat = null;
-  for (const art of MORNING_ARTICLES) {
-    if (art.category !== lastCat) {
-      queue.push(`続いて、${art.category}のニュースです。`);
-      lastCat = art.category;
-    }
-    let text = preprocessTTS(art.summary);
-    if (art.quizQuestion) text += "　クイズです。" + preprocessTTS(art.quizQuestion);
-    queue.push(text);
-  }
-  queue.push("以上、本日のニュースでした。");
   briefingRunning = true;
-  briefingIndex = 0;
+  briefingArticleIndex = 0;
   btn.textContent = "⏹ 停止";
-  playBriefingQueue(queue);
+  speakThen("本日のモーニングブリーフィングを開始します。", readNextBriefingArticle);
 }
 
-function playBriefingQueue(queue) {
-  if (!briefingRunning || briefingIndex >= queue.length) {
-    briefingRunning = false;
-    const btn = document.getElementById('briefing-btn');
-    if (btn) btn.textContent = "📻 全記事を聴く";
+function readNextBriefingArticle() {
+  if (!briefingRunning) return;
+  if (briefingArticleIndex >= MORNING_ARTICLES.length) {
+    speakThen("以上、本日のニュースでした。", () => {
+      briefingRunning = false;
+      const btn = document.getElementById('briefing-btn');
+      if (btn) btn.textContent = "📻 全記事を聴く";
+    });
     return;
   }
-  const utter = new SpeechSynthesisUtterance(queue[briefingIndex]);
-  utter.lang = "ja-JP";
-  utter.rate = 0.95;
-  if (ttsVoice) utter.voice = ttsVoice;
-  utter.onend = () => { briefingIndex++; playBriefingQueue(queue); };
+  const art = MORNING_ARTICLES[briefingArticleIndex];
+  // タブ切り替えとスクロール
+  switchToCategory(art.category);
+  setTimeout(() => {
+    const card = document.getElementById("card-" + art.id);
+    if (card) card.scrollIntoView({behavior: "smooth", block: "center"});
+  }, 300);
+  // カテゴリ変化アナウンス
+  const prevCat = briefingArticleIndex > 0 ? MORNING_ARTICLES[briefingArticleIndex - 1].category : null;
+  const texts = [];
+  if (art.category !== prevCat) texts.push(`続いて、${art.category}のニュースです。`);
+  let articleText = preprocessTTS(art.summary);
+  if (art.quizQuestion) articleText += "　クイズです。" + preprocessTTS(art.quizQuestion);
+  texts.push(articleText);
+  speakSequence(texts, () => { if (briefingRunning) showBriefingNext(); });
+}
+
+function speakThen(text, callback) {
+  if (!briefingRunning) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "ja-JP"; utter.rate = 0.95; if (ttsVoice) utter.voice = ttsVoice;
+  utter.onend = callback;
   currentUtter = utter;
   speechSynthesis.speak(utter);
+}
+
+function speakSequence(texts, onDone) {
+  if (!briefingRunning || texts.length === 0) { if (onDone) onDone(); return; }
+  speakThen(texts[0], () => speakSequence(texts.slice(1), onDone));
+}
+
+function showBriefingNext() {
+  let nb = document.getElementById('briefing-next');
+  if (!nb) {
+    nb = document.createElement('button');
+    nb.id = 'briefing-next';
+    nb.onclick = advanceBriefing;
+    document.body.appendChild(nb);
+  }
+  const remaining = MORNING_ARTICLES.length - briefingArticleIndex - 1;
+  nb.textContent = remaining > 0
+    ? `▶ 次の記事へ（残り ${remaining} 件）`
+    : `▶ ブリーフィングを終了`;
+  nb.style.display = 'block';
+}
+
+function hideBriefingNext() {
+  const nb = document.getElementById('briefing-next');
+  if (nb) nb.style.display = 'none';
+}
+
+function advanceBriefing() {
+  hideBriefingNext();
+  briefingArticleIndex++;
+  readNextBriefingArticle();
+}
+
+function switchToCategory(cat) {
+  document.querySelectorAll(".category-section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  const section = document.getElementById("tab-" + cat);
+  if (section) section.classList.add("active");
+  const tabBtn = [...document.querySelectorAll(".tab-btn")].find(b => b.textContent.includes(cat));
+  if (tabBtn) tabBtn.classList.add("active");
+  filterCards();
 }
 </script>
 </body>
