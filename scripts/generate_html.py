@@ -16,6 +16,7 @@ BASE_DIR = Path(__file__).parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 DOCS_DIR = BASE_DIR / "docs"
 ARCHIVE_DAYS = 30
+ARTICLES_PER_CATEGORY = 4
 
 
 def get_client() -> Client:
@@ -67,7 +68,7 @@ def main() -> None:
     by_category = {cat: [] for cat in categories}
     for a in today_articles:
         cat = a.get("category", "")
-        if cat in by_category:
+        if cat in by_category and len(by_category[cat]) < ARTICLES_PER_CATEGORY:
             by_category[cat].append(a)
 
     tmpl = env.get_template("index.html.j2")

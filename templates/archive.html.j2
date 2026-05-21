@@ -86,7 +86,7 @@
 <footer>ニュースダッシュボード | 過去30日分</footer>
 
 <script>
-const ALL_ARTICLES = {{ articles_json }};
+const ALL_ARTICLES = {{ articles_json | safe }};
 let selectedCat = "";
 let selectedDate = "";
 
