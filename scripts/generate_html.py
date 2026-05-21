@@ -71,12 +71,23 @@ def main() -> None:
         if cat in by_category and len(by_category[cat]) < ARTICLES_PER_CATEGORY:
             by_category[cat].append(a)
 
+    briefing_articles = [
+        {
+            "category": a["category"],
+            "summary": a.get("summary", ""),
+            "quizQuestion": a["quiz"]["question"] if a.get("quiz") else "",
+        }
+        for cat in categories
+        for a in by_category[cat]
+    ]
+
     tmpl = env.get_template("index.html.j2")
     html = tmpl.render(
         today=today,
         categories=categories,
         by_category=by_category,
         total=len(today_articles),
+        briefing_articles=briefing_articles,
     )
     (DOCS_DIR / "index.html").write_text(html, encoding="utf-8")
     print(f"index.html 生成完了（{len(today_articles)} 件）")

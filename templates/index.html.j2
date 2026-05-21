@@ -20,6 +20,9 @@
   header { background: var(--primary); color: #fff; padding: 16px 20px; }
   header h1 { font-size: 1.2rem; }
   header .meta { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
+  #briefing-btn { margin-top: 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.5);
+    color: #fff; padding: 6px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; }
+  #briefing-btn:hover { background: rgba(255,255,255,0.35); }
   .top-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
     padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
   .streak { font-size: 0.9rem; color: #f97316; font-weight: bold; }
@@ -173,6 +176,7 @@
 <header>
   <h1>📰 ニュースダッシュボード</h1>
   <div class="meta">{{ today }} の最新ニュース</div>
+  <button id="briefing-btn" onclick="startMorningBriefing()">📻 全記事を聴く</button>
 </header>
 
 <div class="top-bar">
@@ -691,6 +695,9 @@ function fcRetry() {
 // ---- 読み上げ ----
 let currentUtter = null;
 let ttsVoice = null;
+const MORNING_ARTICLES = {{ briefing_articles | tojson }};
+let briefingIndex = 0;
+let briefingRunning = false;
 
 function loadVoice() {
   const voices = speechSynthesis.getVoices();
@@ -706,8 +713,17 @@ speechSynthesis.onvoiceschanged = loadVoice;
 loadVoice();
 
 function preprocessTTS(text) {
-  // 〜力（りょく）の読み：漢字の直後の「力」はりょく
-  return text.replace(/([一-鿿])力/g, "$1りょく");
+  return text
+    .replace(/([一-鿿])力/g, "$1りょく")
+    .replace(/（[^）]*）/g, "、")
+    .replace(/[・]/g, "、")
+    .replace(/(\d+)%/g, "$1パーセント")
+    .replace(/→/g, "から")
+    .replace(/↑/g, "上昇傾向の")
+    .replace(/↓/g, "下降傾向の")
+    .replace(/[【】「」『』]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function toggleTTS(aid, summary, quizQuestion) {
@@ -716,8 +732,10 @@ function toggleTTS(aid, summary, quizQuestion) {
     speechSynthesis.cancel();
     currentUtter = null;
     document.querySelectorAll("[id^='tts-']").forEach(b => b.textContent = "🔊 読み上げ");
+    if (briefingRunning) { briefingRunning = false; const bb = document.getElementById('briefing-btn'); if(bb) bb.textContent = "📻 全記事を聴く"; }
     return;
   }
+  briefingRunning = false;
   document.querySelectorAll("[id^='tts-']").forEach(b => b.textContent = "🔊 読み上げ");
   const rawText = summary + (quizQuestion ? "　クイズです。" + quizQuestion : "");
   const utter = new SpeechSynthesisUtterance(preprocessTTS(rawText));
@@ -727,6 +745,50 @@ function toggleTTS(aid, summary, quizQuestion) {
   utter.onend = () => { btn.textContent = "🔊 読み上げ"; currentUtter = null; };
   currentUtter = utter;
   btn.textContent = "⏹ 停止";
+  speechSynthesis.speak(utter);
+}
+
+function startMorningBriefing() {
+  const btn = document.getElementById('briefing-btn');
+  if (briefingRunning) {
+    speechSynthesis.cancel();
+    briefingRunning = false;
+    btn.textContent = "📻 全記事を聴く";
+    return;
+  }
+  speechSynthesis.cancel();
+  document.querySelectorAll("[id^='tts-']").forEach(b => b.textContent = "🔊 読み上げ");
+  const queue = ["本日のモーニングブリーフィングを開始します。"];
+  let lastCat = null;
+  for (const art of MORNING_ARTICLES) {
+    if (art.category !== lastCat) {
+      queue.push(`続いて、${art.category}のニュースです。`);
+      lastCat = art.category;
+    }
+    let text = preprocessTTS(art.summary);
+    if (art.quizQuestion) text += "　クイズです。" + preprocessTTS(art.quizQuestion);
+    queue.push(text);
+  }
+  queue.push("以上、本日のニュースでした。");
+  briefingRunning = true;
+  briefingIndex = 0;
+  btn.textContent = "⏹ 停止";
+  playBriefingQueue(queue);
+}
+
+function playBriefingQueue(queue) {
+  if (!briefingRunning || briefingIndex >= queue.length) {
+    briefingRunning = false;
+    const btn = document.getElementById('briefing-btn');
+    if (btn) btn.textContent = "📻 全記事を聴く";
+    return;
+  }
+  const utter = new SpeechSynthesisUtterance(queue[briefingIndex]);
+  utter.lang = "ja-JP";
+  utter.rate = 0.95;
+  if (ttsVoice) utter.voice = ttsVoice;
+  utter.onend = () => { briefingIndex++; playBriefingQueue(queue); };
+  currentUtter = utter;
   speechSynthesis.speak(utter);
 }
 </script>
