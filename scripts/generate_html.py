@@ -1,61 +1,55 @@
-"""Supabase から記事を取得して index.html / archive.html を生成する。"""
+"""data/articles/ から記事を取得して index.html / archive.html を生成する。"""
 
 import json
-import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-from dotenv import load_dotenv
 from jinja2 import Environment, FileSystemLoader
-from supabase import Client, create_client
-
-load_dotenv()
 
 BASE_DIR = Path(__file__).parent.parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 DOCS_DIR = BASE_DIR / "docs"
+DATA_DIR = BASE_DIR / "data" / "articles"
 ARCHIVE_DAYS = 30
 ARTICLES_PER_CATEGORY = 4
 
 
-def get_client() -> Client:
-    url = os.getenv("SUPABASE_URL", "")
-    key = os.getenv("SUPABASE_KEY", "")
-    if not url or not key:
-        raise ValueError("SUPABASE_URL / SUPABASE_KEY が未設定です。")
-    return create_client(url, key)
+def fetch_today(today: str) -> list[dict]:
+    path = DATA_DIR / f"{today}.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def fetch_today(client: Client, today: str) -> list[dict]:
-    resp = (
-        client.table("articles")
-        .select("*")
-        .eq("date", today)
-        .order("category")
-        .execute()
-    )
-    return resp.data or []
-
-
-def fetch_archive(client: Client, since: str) -> list[dict]:
-    resp = (
-        client.table("articles")
-        .select("id,date,category,title,url,summary,importance")
-        .gte("date", since)
-        .order("date", desc=True)
-        .execute()
-    )
-    return resp.data or []
+def fetch_archive(since: str) -> list[dict]:
+    articles = []
+    if not DATA_DIR.exists():
+        return articles
+    for f in sorted(DATA_DIR.glob("*.json"), reverse=True):
+        if f.stem >= since:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            articles.extend(
+                {
+                    "id": a["id"],
+                    "date": a["date"],
+                    "category": a["category"],
+                    "title": a["title"],
+                    "url": a["url"],
+                    "summary": a.get("summary", ""),
+                    "importance": a.get("importance", 1),
+                }
+                for a in data
+            )
+    return articles
 
 
 def main() -> None:
     today = date.today().isoformat()
     since = (date.today() - timedelta(days=ARCHIVE_DAYS)).isoformat()
 
-    client = get_client()
-    today_articles = fetch_today(client, today)
-    archive_articles = fetch_archive(client, since)
+    today_articles = fetch_today(today)
+    archive_articles = fetch_archive(since)
 
     if not today_articles:
         print("[WARN] 本日の記事がありません。HTMLは生成しますが空になります。", file=sys.stderr)

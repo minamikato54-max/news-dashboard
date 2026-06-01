@@ -13,8 +13,6 @@ jobs:
       contents: write
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
       TZ: Asia/Tokyo
 
     steps:
@@ -35,8 +33,8 @@ jobs:
       - name: Process with ChatGPT
         run: python scripts/process_articles.py
 
-      - name: Save to Supabase
-        run: python scripts/save_to_supabase.py
+      - name: Save to JSON
+        run: python scripts/save_to_json.py
 
       - name: Generate HTML
         run: python scripts/generate_html.py
@@ -45,6 +43,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/
+          git add docs/ data/
           git diff --cached --quiet || git commit -m "chore: daily news update $(date -u +'%Y-%m-%d')"
           git push
