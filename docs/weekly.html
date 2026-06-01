@@ -59,8 +59,12 @@
     body { margin-left: 0 !important; padding-bottom: 64px; }
     .side-nav { display: none; }
     .mobile-nav { display: block; }
-    .section { margin: 12px; padding: 14px; }
+    .section { margin: 10px 12px; padding: 14px; }
     .stats { gap: 10px; }
+    .stat-box { min-width: 80px; padding: 10px; }
+    .stat-num { font-size: 1.4rem; }
+    header { padding: 12px 16px; }
+    .trend-chart-wrap { max-width: 100%; }
   }
 </style>
 </head>
@@ -88,7 +92,7 @@
 
 <div class="section">
   <h2>📝 今週のまとめ</h2>
-  <p class="summary-text">今週のニュースでは、天皇皇后両陛下の公式訪問や高市首相のイラン大統領との電話会談が注目されました。また、台風6号の影響で沖縄や奄美地方に非常に強い風が予想され、避難情報の重要性が強調されています。さらに、AIに関する話題も多く、製造業向けのAI EXPOが開催されるなど、人工知能の活用が進んでいます。</p>
+  <p class="summary-text">今週のニュースでは、天皇皇后両陛下の公式訪問に向けた日蘭首脳の電話会談や、高市首相がイラン大統領と合意に期待を寄せる電話会談が報じられました。また、台風6号の影響で沖縄や奄美地方に非常に強い風が予想され、避難情報の重要性が強調されています。さらに、AIに関する話題も多く、製造業向けのAI EXPOが初開催されるなど、人工知能の活用が進んでいます。</p>
 </div>
 
 <div class="section">
@@ -166,7 +170,7 @@
 <footer>ニュースダッシュボード | 週次まとめ</footer>
 
 <script>
-const TREND_DATA = [{"count": 16, "word": "AI"}, {"count": 4, "word": "\u9ad8\u5e02\u9996\u76f8"}, {"count": 2, "word": "\u5929\u7687\u7687\u540e"}, {"count": 2, "word": "\u53f0\u98a86\u53f7"}, {"count": 2, "word": "LGBT"}];
+const TREND_DATA = [{"count": 4, "word": "\u9ad8\u5e02\u9996\u76f8"}, {"count": 2, "word": "\u5929\u7687\u7687\u540e"}, {"count": 2, "word": "\u53f0\u98a86\u53f7"}, {"count": 2, "word": "LGBT"}, {"count": 1, "word": "AI EXPO"}];
 if (TREND_DATA && TREND_DATA.length) {
   new Chart(document.getElementById("trendChart"), {
     type: "bar",
