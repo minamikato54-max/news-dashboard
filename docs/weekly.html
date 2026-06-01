@@ -44,6 +44,24 @@
   .side-nav a.active { background: #eff6ff; color: var(--primary);
     border-left-color: var(--primary); font-weight: bold; }
   footer { text-align: center; padding: 16px; font-size: 0.8rem; color: var(--muted); }
+
+  /* --- モバイル対応 --- */
+  .mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid #e2e8f0; z-index: 150;
+    padding: 6px 0 max(6px, env(safe-area-inset-bottom)); }
+  .mobile-nav-inner { display: flex; justify-content: space-around; }
+  .mobile-nav a { display: flex; flex-direction: column; align-items: center;
+    font-size: 0.72rem; color: var(--muted); text-decoration: none;
+    padding: 4px 12px; gap: 2px; }
+  .mobile-nav a.active { color: var(--primary); font-weight: bold; }
+  .mobile-nav-icon { font-size: 1.3rem; line-height: 1; }
+  @media (max-width: 640px) {
+    body { margin-left: 0 !important; padding-bottom: 64px; }
+    .side-nav { display: none; }
+    .mobile-nav { display: block; }
+    .section { margin: 12px; padding: 14px; }
+    .stats { gap: 10px; }
+  }
 </style>
 </head>
 <body>
@@ -55,14 +73,22 @@
   <a href="weekly.html" class="active">📊 週次まとめ</a>
 </nav>
 
+<div class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <a href="index.html"><span class="mobile-nav-icon">📅</span>今日</a>
+    <a href="archive.html"><span class="mobile-nav-icon">📂</span>アーカイブ</a>
+    <a href="weekly.html" class="active"><span class="mobile-nav-icon">📊</span>週次</a>
+  </div>
+</div>
+
 <header>
   <h1>📊 週次まとめ</h1>
-  <div class="meta">2026-05-16 〜 2026-05-23</div>
+  <div class="meta">2026-05-25 〜 2026-06-01</div>
 </header>
 
 <div class="section">
   <h2>📝 今週のまとめ</h2>
-  <p class="summary-text">今週のニュースでは、日本の経済政策や外交活動が注目され、高市首相と日銀総裁の会談や防衛費に関する自民党の提言が報じられました。また、国内では教育内容の政治的中立性に関する問題や、栃木の強盗殺人事件が話題となりました。海外では、米イランの緊張やロシアのウクライナ侵攻に関する動きが続いており、国際情勢も引き続き注視されています。</p>
+  <p class="summary-text">今週のニュースでは、天皇皇后両陛下の公式訪問や高市首相のイラン大統領との電話会談が注目されました。また、台風6号の影響で沖縄や奄美地方に非常に強い風が予想され、避難情報の重要性が強調されています。さらに、AIに関する話題も多く、製造業向けのAI EXPOが開催されるなど、人工知能の活用が進んでいます。</p>
 </div>
 
 <div class="section">
@@ -78,45 +104,45 @@
   <div class="important-list">
     
     <div class="imp-card">
-      <div class="imp-cat">2026-05-22 · 経済</div>
-      <div class="imp-title">「日本国国旗損壊罪」法案の骨子案を大筋了承 自民作業チーム</div>
-      <div class="imp-summary">自民党の作業チームが「日本国国旗損壊罪」法案の骨子案を大筋で了承したということです。注目したいのは、この法案が国旗に対する侮辱行為を厳しく取り締まる内容である点です。今後の議論が期待されます。</div>
-      <a href="http://www3.nhk.or.jp/news/html/20260522/k10015128541000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
+      <div class="imp-cat">2026-06-01 · 経済</div>
+      <div class="imp-title">LGBTの理解増進に向け初の基本計画案 政府が自民に示す</div>
+      <div class="imp-summary">政府が自民党に対して、LGBTの理解を深めるための初の基本計画案を示したということです。注目したいのは、この計画が社会全体の意識改革を促すことを目指している点です。今後の進展が期待されます。</div>
+      <a href="http://www3.nhk.or.jp/news/html/20260601/k10015137511000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
     </div>
     
     <div class="imp-card">
-      <div class="imp-cat">2026-05-22 · 国内</div>
-      <div class="imp-title">辺野古沖転覆 “高校の教育内容は政治的中立性に違反” 文科省</div>
-      <div class="imp-summary">文部科学省が辺野古沖の転覆事故に関連して、高校の教育内容が政治的中立性に違反していると指摘しました。注目したいのは、この問題が教育現場に与える影響です。今後の対応が注目されます。</div>
-      <a href="http://www3.nhk.or.jp/news/html/20260522/k10015128371000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
+      <div class="imp-cat">2026-06-01 · 国内</div>
+      <div class="imp-title">台風6号 沖縄・奄美で非常に強い風 線状降水帯発生のおそれも</div>
+      <div class="imp-summary">台風6号が沖縄や奄美地方に非常に強い風をもたらす見込みです。また、線状降水帯が発生する恐れもあり、注意が必要ということです。気象庁は引き続き警戒を呼びかけています。</div>
+      <a href="http://www3.nhk.or.jp/news/html/20260601/k10015136781000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
     </div>
     
     <div class="imp-card">
-      <div class="imp-cat">2026-05-22 · 国内</div>
-      <div class="imp-title">栃木強盗殺人事件 高校生ら別々の場所から敷地内に侵入か</div>
-      <div class="imp-summary">栃木県で発生した強盗殺人事件について、高校生らが別々の場所から被害者の敷地内に侵入した可能性があることが明らかになりました。注目したいのは、事件の背後にある動機や計画性です。今後の捜査の進展が期待されます。</div>
-      <a href="http://www3.nhk.or.jp/news/html/20260522/k10015129091000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
+      <div class="imp-cat">2026-06-01 · 国内</div>
+      <div class="imp-title">【台風】専門家 “見通し伝える「時系列情報」活用し避難を”</div>
+      <div class="imp-summary">台風の影響を受ける地域では、専門家が「時系列情報」を活用することが重要だと指摘しています。これにより、住民は適切な避難行動を取ることができるということです。注目したいのは、情報の伝達方法が避難の成功に大きく影響するという点です。</div>
+      <a href="http://www3.nhk.or.jp/news/html/20260601/k10015137471000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
     </div>
     
     <div class="imp-card">
-      <div class="imp-cat">2026-05-22 · 国内</div>
-      <div class="imp-title">米イラン 濃縮ウランやホルムズ海峡管理が依然争点か</div>
-      <div class="imp-summary">米国とイランの間で、濃縮ウランの問題やホルムズ海峡の管理が依然として重要な争点であることが明らかになりました。特に、これらの問題は地域の安全保障に大きな影響を与えるため、注目したいところです。</div>
-      <a href="http://www3.nhk.or.jp/news/html/20260522/k10015128231000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
+      <div class="imp-cat">2026-06-01 · 国内</div>
+      <div class="imp-title">埼玉 川口 「包丁で刺した」通報 現場で見つかった男女死亡</div>
+      <div class="imp-summary">埼玉県川口市で、包丁で刺されたと通報があり、現場で男女が死亡しているのが見つかりました。警察は事件の詳細を調査中で、周囲の住民に不安が広がっています。注目したいのは、事件の背景や動機がまだ明らかになっていない点です。</div>
+      <a href="http://www3.nhk.or.jp/news/html/20260601/k10015137361000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
     </div>
     
     <div class="imp-card">
-      <div class="imp-cat">2026-05-22 · 海外</div>
-      <div class="imp-title">フェンタニルなど違法薬物の密輸 日米で捜査情報連携強化</div>
-      <div class="imp-summary">日米間でフェンタニルなどの違法薬物の密輸に関する捜査情報の連携が強化されることが発表されました。注目したいのは、両国が協力して密輸ルートを特定し、取り締まりを強化する方針であるということです。これにより、薬物問題の解決に向けた新たな一歩が踏み出されることが期待されています。</div>
-      <a href="http://www3.nhk.or.jp/news/html/20260522/k10015129071000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
+      <div class="imp-cat">2026-06-01 · 国内</div>
+      <div class="imp-title">「フラット35」 6月の適用金利が3.21％ 3％超は現行で初</div>
+      <div class="imp-summary">6月の「フラット35」の適用金利が3.21％に達し、3％を超えるのは現行で初めてということです。これにより、住宅ローンを利用する人々にとって影響が大きいと注目されています。金利上昇の背景には、経済状況の変化があるとされています。</div>
+      <a href="http://www3.nhk.or.jp/news/html/20260601/k10015137521000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
     </div>
     
     <div class="imp-card">
-      <div class="imp-cat">2026-05-22 · 海外</div>
-      <div class="imp-title">NPT再検討会議 最終日の議論へ 「最終文書」採択できるか</div>
-      <div class="imp-summary">NPT再検討会議の最終日が近づいており、各国の代表が「最終文書」の採択に向けて議論を行っています。注目したいのは、核兵器の不拡散に関する合意がどのように形成されるかということです。最終的な合意が得られるかどうかが焦点となっています。</div>
-      <a href="http://www3.nhk.or.jp/news/html/20260522/k10015128471000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
+      <div class="imp-cat">2026-06-01 · 海外</div>
+      <div class="imp-title">ウクライナ大統領 “ロシア軍は劣勢に 外交的道筋を” 米報道</div>
+      <div class="imp-summary">ウクライナの大統領が、ロシア軍が劣勢にあると発言し、外交的な解決策を模索する必要性を訴えたということです。特に、米国の報道によると、戦況の変化が外交交渉に影響を与える可能性があるとされています。注目したいのは、この発言が国際的な反応を引き起こすかもしれないという点です。</div>
+      <a href="http://www3.nhk.or.jp/news/html/20260601/k10015137551000.html" target="_blank" rel="noopener">🔗 記事を読む</a>
     </div>
     
   </div>
@@ -127,7 +153,7 @@
   <h2>📈 今週の統計</h2>
   <div class="stats">
     <div class="stat-box">
-      <div class="stat-num">145</div>
+      <div class="stat-num">16</div>
       <div class="stat-label">今週の記事数</div>
     </div>
     <div class="stat-box">
@@ -140,7 +166,7 @@
 <footer>ニュースダッシュボード | 週次まとめ</footer>
 
 <script>
-const TREND_DATA = [{"count": 22, "word": "\u7d4c\u6e08"}, {"count": 7, "word": "\u6559\u80b2"}, {"count": 7, "word": "\u9632\u885b"}, {"count": 6, "word": "\u5916\u4ea4"}, {"count": 1, "word": "\u56fd\u969b\u60c5\u52e2"}];
+const TREND_DATA = [{"count": 16, "word": "AI"}, {"count": 4, "word": "\u9ad8\u5e02\u9996\u76f8"}, {"count": 2, "word": "\u5929\u7687\u7687\u540e"}, {"count": 2, "word": "\u53f0\u98a86\u53f7"}, {"count": 2, "word": "LGBT"}];
 if (TREND_DATA && TREND_DATA.length) {
   new Chart(document.getElementById("trendChart"), {
     type: "bar",
