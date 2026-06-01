@@ -45,6 +45,23 @@
     border-left-color: var(--primary); font-weight: bold; }
   footer { text-align: center; padding: 16px; font-size: 0.8rem; color: var(--muted); }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
+
+  /* --- モバイル対応 --- */
+  .mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid #e2e8f0; z-index: 150;
+    padding: 6px 0 max(6px, env(safe-area-inset-bottom)); }
+  .mobile-nav-inner { display: flex; justify-content: space-around; }
+  .mobile-nav a { display: flex; flex-direction: column; align-items: center;
+    font-size: 0.72rem; color: var(--muted); text-decoration: none;
+    padding: 4px 12px; gap: 2px; }
+  .mobile-nav a.active { color: var(--primary); font-weight: bold; }
+  .mobile-nav-icon { font-size: 1.3rem; line-height: 1; }
+  @media (max-width: 640px) {
+    body { margin-left: 0 !important; padding-bottom: 64px; }
+    .side-nav { display: none; }
+    .mobile-nav { display: block; }
+    .filters { gap: 8px; }
+  }
 </style>
 </head>
 <body>
@@ -55,6 +72,14 @@
   <a href="archive.html" class="active">📂 アーカイブ</a>
   <a href="weekly.html">📊 週次まとめ</a>
 </nav>
+
+<div class="mobile-nav">
+  <div class="mobile-nav-inner">
+    <a href="index.html"><span class="mobile-nav-icon">📅</span>今日</a>
+    <a href="archive.html" class="active"><span class="mobile-nav-icon">📂</span>アーカイブ</a>
+    <a href="weekly.html"><span class="mobile-nav-icon">📊</span>週次</a>
+  </div>
+</div>
 
 <header>
   <h1>📂 アーカイブ</h1>
