@@ -60,7 +60,12 @@
     body { margin-left: 0 !important; padding-bottom: 64px; }
     .side-nav { display: none; }
     .mobile-nav { display: block; }
-    .filters { gap: 8px; }
+    /* カード1列化 */
+    .cards { grid-template-columns: 1fr; padding: 12px; }
+    /* 余白縮小 */
+    .filters { padding: 10px 12px; gap: 8px; }
+    .chart-section { margin: 0 12px 12px; padding: 14px; }
+    header { padding: 12px 16px; }
   }
 </style>
 </head>
